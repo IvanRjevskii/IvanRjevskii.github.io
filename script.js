@@ -1,30 +1,39 @@
+Survey.StylesManager.applyTheme("defaultV2");
+Survey.localization.currentLocale = "ru";
+
 fetch('questions.json')
     .then(response => response.json())
-    .then(questions => {
-        const survey = new Survey.Model(questions);
+    .then(surveyJson => {
+        const survey = new Survey.Model(surveyJson);
         
         survey.onComplete.add(function(sender) {
-            const results = sender.data;
-            const correctCount = Object.keys(results).reduce((count, key) => {
-                const questionIndex = parseInt(key.replace('question', '')) - 1;
-                const correctAnswer = questions.pages[Math.floor(questionIndex / 10)].elements[questionIndex % 10].correctAnswer;
+            let correctCount = 0;
+            const totalQuestions = 99;
+            
+            for (let i = 1; i <= totalQuestions; i++) {
+                const questionName = `question${i}`;
+                const userAnswer = sender.data[questionName];
+                const pageIdx = Math.floor((i - 1) / 10);
+                const elemIdx = (i - 1) % 10;
+                const correctAnswer = surveyJson.pages[pageIdx].elements[elemIdx].correctAnswer;
                 
                 if (Array.isArray(correctAnswer)) {
-                    const userAnswers = results[key];
-                    if (JSON.stringify(userAnswers.sort()) === JSON.stringify(correctAnswer.sort())) {
-                        return count + 1;
+                    const userArray = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+                    if (JSON.stringify(userArray.sort()) === JSON.stringify(correctAnswer.sort())) {
+                        correctCount++;
                     }
-                } else {
-                    if (results[key] === correctAnswer) {
-                        return count + 1;
-                    }
+                } else if (userAnswer === correctAnswer) {
+                    correctCount++;
                 }
-                return count;
-            }, 0);
+            }
             
-            const percentage = Math.round((correctCount / 99) * 100);
-            alert(`Тест завершен!\nПравильных ответов: ${correctCount} из 99 (${percentage}%)`);
+            const percentage = Math.round((correctCount / totalQuestions) * 100);
+            alert(`✅ Тест завершён!\nПравильных ответов: ${correctCount} из ${totalQuestions} (${percentage}%)`);
         });
         
-        Survey.SurveyNG.render("surveyContainer", { model: survey });
+        new Survey.SurveyNG().render("surveyContainer", { model: survey });
+    })
+    .catch(error => {
+        console.error('Ошибка загрузки вопросов:', error);
+        document.getElementById('surveyContainer').innerHTML = '<h2>Ошибка загрузки теста</h2><p>Проверьте консоль браузера (F12)</p>';
     });
